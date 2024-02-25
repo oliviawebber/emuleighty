@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 oppsy = { path = "../oppsy" }
 deku = "0.16"
+clap = { version = "4.5.1", features = ["derive"] }
+patharg = "0.4.0"
