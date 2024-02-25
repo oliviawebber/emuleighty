@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 oppsy = { path = "../oppsy" }
+deku = "0.16"
