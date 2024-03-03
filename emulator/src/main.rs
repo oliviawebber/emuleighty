@@ -19,176 +19,7 @@ struct Emulator {
     state: State,
 }
 
-fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
-    match instruction {
-        MainInstructions::NOP => Emulator {
-            program: emulator.program,
-            heap: emulator.heap,
-            stack: emulator.stack,
-            pc: emulator.pc + 1,
-            state: emulator.state,
-        },
-        MainInstructions::LDBC(_) => todo!(),
-        MainInstructions::INCBC => todo!(),
-        MainInstructions::LDHL(val) => {
-            let h = (val >> 8) as u8;
-            let l = val as u8;
-            let state = State {
-                a: emulator.state.a,
-                h,
-                l,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 3,
-                state,
-            }
-        },
-        MainInstructions::INCHL => {
-            let val = (emulator.get_hl_addr() + 1) as u16;
-            let state = State {
-                a: emulator.state.a,
-                h: (val >> 8) as u8,
-                l: val as u8,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 1,
-                state,
-            }
-        }
-        MainInstructions::INCA => {
-            let state = State {
-                a: emulator.state.a + 1,
-                h: emulator.state.h,
-                l: emulator.state.l,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 1,
-                state,
-            }
-        }
-        MainInstructions::LDA(val) => {
-            let state = State {
-                a: val,
-                h: emulator.state.h,
-                l: emulator.state.l,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 2,
-                state,
-            }
-        }
-        MainInstructions::LDHLA => {
-            let mut heap = emulator.heap;
-            heap[emulator.get_hl_addr()] = emulator.state.a;
-            Emulator {
-                program: emulator.program,
-                heap: heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 1,
-                state: emulator.state,
-            }
-        },
-        MainInstructions::LDAHL => {
-            let state = State {
-                a: emulator.heap[emulator.get_hl_addr()],
-                h: emulator.state.h,
-                l: emulator.state.l,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 1,
-                state: state,
-            }
-        },
-        MainInstructions::XORA => {
-            let state = State {
-                a: emulator.state.a ^ emulator.state.a,
-                h: emulator.state.h,
-                l: emulator.state.l,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 1,
-                state: state,
-            }
-        }
-        MainInstructions::JPN(val) => Emulator {
-            program: emulator.program,
-            heap: emulator.heap,
-            stack: emulator.stack,
-            pc: val as usize,
-            state: emulator.state,
-        },
-        MainInstructions::CALL(addr) => {
-            let mut stack = emulator.stack;
-            stack.push(addr);
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: stack,
-                pc: addr as usize,
-                state: emulator.state,
-            }
-        },
-        MainInstructions::OUT(device) => {
-            match device {
-                1 => println!("OUT: {}", emulator.state.a),
-                _ => todo!(),
-            }
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: emulator.stack,
-                pc: emulator.pc + 2,
-                state: emulator.state,
-            }
-        },
-        MainInstructions::POPHL => {
-            let mut stack = emulator.stack;
-            let val = stack.pop().expect("No value on stack!");
-            let state = State {
-                a: emulator.state.a,
-                h: (val >> 8) as u8,
-                l: val as u8,
-            };
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: stack,
-                pc: emulator.pc + 1,
-                state: state,
-            }
-        },
-        MainInstructions::PUSHHL => {
-            let hl = emulator.get_hl_addr() as u16;
-            let mut stack = emulator.stack;
-            stack.push(hl);
-            Emulator {
-                program: emulator.program,
-                heap: emulator.heap,
-                stack: stack,
-                pc: emulator.pc + 1,
-                state: emulator.state,
-            }
-        }
-    }
-}
+
 
 impl Emulator {
     pub fn new(program: Vec<u8>) -> Emulator {
@@ -204,7 +35,76 @@ impl Emulator {
     fn do_op(self) -> Emulator {
         let (_result, instruction) =
             MainInstructions::from_bytes((&self.program, 8 * self.pc)).expect("Invalid Op Code");
-        update_state(self, instruction)
+        self.update_state(instruction)
+    }
+
+    fn update_state(mut self, instruction: MainInstructions) -> Emulator {
+        self.pc += match instruction {
+            MainInstructions::NOP => {
+                1
+            },
+            MainInstructions::LDBC(_) => todo!(),
+            MainInstructions::INCBC => todo!(),
+            MainInstructions::LDHL(val) => {
+                self.state.h = (val >> 8) as u8;
+                self.state.l = val as u8;
+                3
+            },
+            MainInstructions::INCHL => {
+                let val = (self.get_hl_addr() + 1) as u16;
+                self.state.h = (val >> 8) as u8;
+                self.state.l = val as u8;
+                1
+            }
+            MainInstructions::INCA => {
+                self.state.a += 1;
+                1
+            }
+            MainInstructions::LDA(val) => {
+                self.state.a = val;
+                2
+            }
+            MainInstructions::LDHLA => {
+                self.heap[self.get_hl_addr()] = self.state.a;
+                1
+            },
+            MainInstructions::LDAHL => {
+                self.state.a = self.heap[self.get_hl_addr()];
+                1
+            },
+            MainInstructions::XORA => {
+                self.state.a ^= self.state.a;
+                1
+            }
+            MainInstructions::JPN(val) => {
+                self.pc = val as usize;
+                0
+            },
+            MainInstructions::CALL(addr) => {
+                self.stack.push(addr);
+                self.pc = addr as usize;
+                0
+            },
+            MainInstructions::OUT(device) => {
+                match device {
+                    1 => println!("OUT: {}", self.state.a),
+                    _ => todo!(),
+                }
+                2
+            },
+            MainInstructions::POPHL => {
+                let val = self.stack.pop().expect("No value on stack!");
+                self.state.h = (val >> 8) as u8;
+                self.state.l = val as u8;
+                1
+            },
+            MainInstructions::PUSHHL => {
+                let hl = self.get_hl_addr() as u16;
+                self.stack.push(hl);
+                1
+            }
+        };
+        self
     }
 
     fn get_state(&self) -> () {
