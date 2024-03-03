@@ -1,6 +1,7 @@
 use oppsy::codes::MainInstructions;
 use std::fs;
 use std::env;
+use std::io::Read;
 use deku::prelude::*;
 use std::process::exit;
 
@@ -26,6 +27,16 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
         },
         MainInstructions::LDBC(_) => todo!(),
         MainInstructions::INCBC => todo!(),
+        MainInstructions::INCA => {
+            let state = State {
+                a: emulator.state.a + 1,
+            };
+            Emulator {
+                program: emulator.program,
+                pc: emulator.pc + 1,
+                state,
+            }
+        }
         MainInstructions::LDA(val) => {
             let state = State {
                 a: val,
@@ -36,8 +47,11 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
                 state,
             }
         },
-        MainInstructions::OUT(_) => {
-            println!("OUT: {}", emulator.state.a);
+        MainInstructions::OUT(device) => {
+            match device {
+                1 => println!("OUT: {}", emulator.state.a),
+                _ => todo!()
+            }
             Emulator {
                 program: emulator.program,
                 pc: emulator.pc + 2,
@@ -77,11 +91,10 @@ fn main() {
     }
     let file = &args[1];
     let prog = fs::read(file).expect("Should be able to read file!");
-    let emulator = Emulator::new(prog);
-    // emulator.get_state();
-    let emulator = emulator.do_op();
-    // emulator.get_state();
-    let emulator = emulator.do_op();
-    // emulator.next().next().next();
-    let emulator = emulator.do_op();
+    let mut emulator = Emulator::new(prog);
+    loop {
+        println!("---");
+        emulator = emulator.do_op();
+        emulator.get_state();
+    }
 }
