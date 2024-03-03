@@ -13,7 +13,8 @@ struct State {
 
 struct Emulator {
     program: Vec<u8>,
-    stack: [u8; 65536],
+    heap: [u8; 65536],
+    stack: Vec<u16>,
     pc: usize,
     state: State,
 }
@@ -22,6 +23,7 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
     match instruction {
         MainInstructions::NOP => Emulator {
             program: emulator.program,
+            heap: emulator.heap,
             stack: emulator.stack,
             pc: emulator.pc + 1,
             state: emulator.state,
@@ -38,8 +40,24 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
             };
             Emulator {
                 program: emulator.program,
+                heap: emulator.heap,
                 stack: emulator.stack,
                 pc: emulator.pc + 3,
+                state,
+            }
+        },
+        MainInstructions::INCHL => {
+            let val = (emulator.get_hl_addr() + 1) as u16;
+            let state = State {
+                a: emulator.state.a,
+                h: (val >> 8) as u8,
+                l: val as u8,
+            };
+            Emulator {
+                program: emulator.program,
+                heap: emulator.heap,
+                stack: emulator.stack,
+                pc: emulator.pc + 1,
                 state,
             }
         }
@@ -51,6 +69,7 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
             };
             Emulator {
                 program: emulator.program,
+                heap: emulator.heap,
                 stack: emulator.stack,
                 pc: emulator.pc + 1,
                 state,
@@ -64,21 +83,37 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
             };
             Emulator {
                 program: emulator.program,
+                heap: emulator.heap,
                 stack: emulator.stack,
                 pc: emulator.pc + 2,
                 state,
             }
         }
         MainInstructions::LDHLA => {
-            let mut stack = emulator.stack;
-            stack[emulator.get_hl_addr()] = emulator.state.a;
+            let mut heap = emulator.heap;
+            heap[emulator.get_hl_addr()] = emulator.state.a;
             Emulator {
                 program: emulator.program,
-                stack: stack,
+                heap: heap,
+                stack: emulator.stack,
                 pc: emulator.pc + 1,
                 state: emulator.state,
             }
-        }
+        },
+        MainInstructions::LDAHL => {
+            let state = State {
+                a: emulator.heap[emulator.get_hl_addr()],
+                h: emulator.state.h,
+                l: emulator.state.l,
+            };
+            Emulator {
+                program: emulator.program,
+                heap: emulator.heap,
+                stack: emulator.stack,
+                pc: emulator.pc + 1,
+                state: state,
+            }
+        },
         MainInstructions::XORA => {
             let state = State {
                 a: emulator.state.a ^ emulator.state.a,
@@ -87,6 +122,7 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
             };
             Emulator {
                 program: emulator.program,
+                heap: emulator.heap,
                 stack: emulator.stack,
                 pc: emulator.pc + 1,
                 state: state,
@@ -94,9 +130,21 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
         }
         MainInstructions::JPN(val) => Emulator {
             program: emulator.program,
+            heap: emulator.heap,
             stack: emulator.stack,
             pc: val as usize,
             state: emulator.state,
+        },
+        MainInstructions::CALL(addr) => {
+            let mut stack = emulator.stack;
+            stack.push(addr);
+            Emulator {
+                program: emulator.program,
+                heap: emulator.heap,
+                stack: stack,
+                pc: addr as usize,
+                state: emulator.state,
+            }
         },
         MainInstructions::OUT(device) => {
             match device {
@@ -105,8 +153,37 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
             }
             Emulator {
                 program: emulator.program,
+                heap: emulator.heap,
                 stack: emulator.stack,
                 pc: emulator.pc + 2,
+                state: emulator.state,
+            }
+        },
+        MainInstructions::POPHL => {
+            let mut stack = emulator.stack;
+            let val = stack.pop().expect("No value on stack!");
+            let state = State {
+                a: emulator.state.a,
+                h: (val >> 8) as u8,
+                l: val as u8,
+            };
+            Emulator {
+                program: emulator.program,
+                heap: emulator.heap,
+                stack: stack,
+                pc: emulator.pc + 1,
+                state: state,
+            }
+        },
+        MainInstructions::PUSHHL => {
+            let hl = emulator.get_hl_addr() as u16;
+            let mut stack = emulator.stack;
+            stack.push(hl);
+            Emulator {
+                program: emulator.program,
+                heap: emulator.heap,
+                stack: stack,
+                pc: emulator.pc + 1,
                 state: emulator.state,
             }
         }
@@ -117,7 +194,8 @@ impl Emulator {
     pub fn new(program: Vec<u8>) -> Emulator {
         Emulator {
             program: program,
-            stack: [0_u8; 65536],
+            heap: [0_u8; 65536],
+            stack: Vec::new(),
             pc: 0,
             state: State { a: 0, h: 0, l: 0 },
         }
