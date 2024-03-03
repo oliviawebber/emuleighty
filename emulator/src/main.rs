@@ -1,7 +1,7 @@
-use oppsy::codes::MainInstructions;
-use std::fs;
-use std::env;
 use deku::prelude::*;
+use oppsy::codes::MainInstructions;
+use std::env;
+use std::fs;
 use std::process::exit;
 
 #[derive(Debug)]
@@ -20,13 +20,11 @@ struct Emulator {
 
 fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
     match instruction {
-        MainInstructions::NOP => {
-            Emulator {
-                program: emulator.program,
-                stack: emulator.stack,
-                pc: emulator.pc + 1,
-                state: emulator.state,
-            }
+        MainInstructions::NOP => Emulator {
+            program: emulator.program,
+            stack: emulator.stack,
+            pc: emulator.pc + 1,
+            state: emulator.state,
         },
         MainInstructions::LDBC(_) => todo!(),
         MainInstructions::INCBC => todo!(),
@@ -70,7 +68,7 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
                 pc: emulator.pc + 2,
                 state,
             }
-        },
+        }
         MainInstructions::LDHLA => {
             let mut stack = emulator.stack;
             stack[emulator.get_hl_addr()] = emulator.state.a;
@@ -94,18 +92,16 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
                 state: state,
             }
         }
-        MainInstructions::JPN(val) => {
-            Emulator {
-                program: emulator.program,
-                stack: emulator.stack,
-                pc: val as usize,
-                state: emulator.state,
-            }
-        }
+        MainInstructions::JPN(val) => Emulator {
+            program: emulator.program,
+            stack: emulator.stack,
+            pc: val as usize,
+            state: emulator.state,
+        },
         MainInstructions::OUT(device) => {
             match device {
                 1 => println!("OUT: {}", emulator.state.a),
-                _ => todo!()
+                _ => todo!(),
             }
             Emulator {
                 program: emulator.program,
@@ -113,7 +109,7 @@ fn update_state(emulator: Emulator, instruction: MainInstructions) -> Emulator {
                 pc: emulator.pc + 2,
                 state: emulator.state,
             }
-        },
+        }
     }
 }
 
@@ -123,16 +119,13 @@ impl Emulator {
             program: program,
             stack: [0_u8; 65536],
             pc: 0,
-            state: State {
-                a: 0,
-                h: 0,
-                l: 0,
-            },
+            state: State { a: 0, h: 0, l: 0 },
         }
     }
 
     fn do_op(self) -> Emulator {
-        let (_result, instruction) = MainInstructions::from_bytes((&self.program, 8*self.pc)).expect("Invalid Op Code");
+        let (_result, instruction) =
+            MainInstructions::from_bytes((&self.program, 8 * self.pc)).expect("Invalid Op Code");
         update_state(self, instruction)
     }
 
