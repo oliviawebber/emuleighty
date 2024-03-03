@@ -12,6 +12,7 @@ struct State {
     l: u8,
 }
 
+#[derive(Debug)]
 struct Flags {
     z: bool,
 }
@@ -73,6 +74,9 @@ impl Emulator {
             MainInstructions::LDA(val) => {
                 self.state.a = val;
                 2
+            },
+            MainInstructions::HALT => {
+                exit(0)
             }
             MainInstructions::LDHLA => {
                 self.memory[self.get_hl_addr()] = self.state.a;
@@ -93,10 +97,11 @@ impl Emulator {
             MainInstructions::RETZ => {
                 if self.flags.z {
                     let val = self.stack.pop().expect("No stack value.");
-                    self.state.h = (val >> 8) as u8;
-                    self.state.l = val as u8;
+                    self.pc = val as usize;
+                    0
+                } else {
+                    1
                 }
-                1
             }
             MainInstructions::CALL(addr) => {
                 self.stack.push(self.pc as u16 + 3);
@@ -129,6 +134,9 @@ impl Emulator {
                 if cmp == 0 {
                     self.flags.z = true;
                 }
+                else {
+                    self.flags.z = false;
+                }
                 2
             }
         };
@@ -137,6 +145,7 @@ impl Emulator {
 
     fn get_state(&self) -> () {
         println!("PC: {}", self.pc);
+        println!("FLAGS:\n {:?}", self.flags);
         println!("STATE:\n {:?}", self.state);
         println!("STACK:\n {:X?}", self.stack);
     }

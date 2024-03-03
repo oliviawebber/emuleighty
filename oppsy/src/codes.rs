@@ -17,6 +17,8 @@ pub enum MainInstructions {
     INCA,
     #[deku(id = "0x3E")]
     LDA(u8),
+    #[deku(id = "0x76")]
+    HALT,
     #[deku(id = "0x77")]
     LDHLA,
     #[deku(id = "0x7E")]
