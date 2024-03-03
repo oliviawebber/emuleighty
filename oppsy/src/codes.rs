@@ -25,6 +25,8 @@ pub enum MainInstructions {
     XORA,
     #[deku(id = "0xC3")]
     JPN(u16),
+    #[deku(id = "0xC8")]
+    RETZ,
     #[deku(id = "0xCD")]
     CALL(u16),
     #[deku(id = "0xD3")]
@@ -33,4 +35,6 @@ pub enum MainInstructions {
     POPHL,
     #[deku(id = "0xE5")]
     PUSHHL,
+    #[deku(id = "0xFE")]
+    CPN(u8),
 }

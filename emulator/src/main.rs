@@ -3,6 +3,7 @@ use oppsy::codes::MainInstructions;
 use std::env;
 use std::fs;
 use std::process::exit;
+use std::io::{stdin, Read};
 
 #[derive(Debug)]
 struct State {
@@ -11,30 +12,39 @@ struct State {
     l: u8,
 }
 
+struct Flags {
+    z: bool,
+}
+
 struct Emulator {
-    program: Vec<u8>,
-    heap: [u8; 65536],
+    memory: [u8; 65536],
     stack: Vec<u16>,
     pc: usize,
     state: State,
+    flags: Flags,
 }
 
 
 
 impl Emulator {
     pub fn new(program: Vec<u8>) -> Emulator {
+        let mut memory = [0u8; 65536];
+        memory[..program.len()].copy_from_slice(&program);
         Emulator {
-            program: program,
-            heap: [0_u8; 65536],
+            memory: memory,
             stack: Vec::new(),
             pc: 0,
             state: State { a: 0, h: 0, l: 0 },
+            flags: Flags { z: false }
         }
     }
 
-    fn do_op(self) -> Emulator {
+    fn do_op(self, debug: bool) -> Emulator {
         let (_result, instruction) =
-            MainInstructions::from_bytes((&self.program, 8 * self.pc)).expect("Invalid Op Code");
+            MainInstructions::from_bytes((&self.memory, 8 * self.pc)).expect("Invalid Op Code");
+        if debug {
+            println!("{:?} {:X?}", instruction, instruction.to_bytes().unwrap());
+        }
         self.update_state(instruction)
     }
 
@@ -65,11 +75,11 @@ impl Emulator {
                 2
             }
             MainInstructions::LDHLA => {
-                self.heap[self.get_hl_addr()] = self.state.a;
+                self.memory[self.get_hl_addr()] = self.state.a;
                 1
             },
             MainInstructions::LDAHL => {
-                self.state.a = self.heap[self.get_hl_addr()];
+                self.state.a = self.memory[self.get_hl_addr()];
                 1
             },
             MainInstructions::XORA => {
@@ -80,14 +90,25 @@ impl Emulator {
                 self.pc = val as usize;
                 0
             },
+            MainInstructions::RETZ => {
+                if self.flags.z {
+                    let val = self.stack.pop().expect("No stack value.");
+                    self.state.h = (val >> 8) as u8;
+                    self.state.l = val as u8;
+                }
+                1
+            }
             MainInstructions::CALL(addr) => {
-                self.stack.push(addr);
+                self.stack.push(self.pc as u16 + 3);
                 self.pc = addr as usize;
                 0
             },
             MainInstructions::OUT(device) => {
                 match device {
-                    1 => println!("OUT: {}", self.state.a),
+                    1 => {
+                        let out_char = char::from_u32(self.state.a as u32).unwrap();
+                        print!("{}", out_char)
+                    },
                     _ => todo!(),
                 }
                 2
@@ -102,6 +123,13 @@ impl Emulator {
                 let hl = self.get_hl_addr() as u16;
                 self.stack.push(hl);
                 1
+            },
+            MainInstructions::CPN(val) => {
+                let cmp = self.state.a.wrapping_sub(val);
+                if cmp == 0 {
+                    self.flags.z = true;
+                }
+                2
             }
         };
         self
@@ -110,6 +138,7 @@ impl Emulator {
     fn get_state(&self) -> () {
         println!("PC: {}", self.pc);
         println!("STATE:\n {:?}", self.state);
+        println!("STACK:\n {:X?}", self.stack);
     }
 
     fn get_hl_addr(&self) -> usize {
@@ -123,12 +152,16 @@ fn main() {
     if args.len() < 2 {
         exit(1);
     }
+    let debug = args.len() == 3;
     let file = &args[1];
     let prog = fs::read(file).expect("Should be able to read file!");
     let mut emulator = Emulator::new(prog);
     loop {
-        println!("---");
-        emulator = emulator.do_op();
-        emulator.get_state();
+        if debug {
+            println!("---");
+            emulator.get_state();
+            stdin().read(&mut [0]).unwrap();
+        }
+        emulator = emulator.do_op(debug);
     }
 }
