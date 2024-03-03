@@ -9,4 +9,8 @@ pub enum MainInstructions {
     LDBC(u16),
     #[deku(id = "0x03")]
     INCBC,
+    #[deku(id = "0x3E")]
+    LDA(u8),
+    #[deku(id = "0xD3")]
+    OUT(u8),
 }
