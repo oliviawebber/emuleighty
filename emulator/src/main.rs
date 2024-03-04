@@ -8,6 +8,7 @@ use std::io::{stdin, Read};
 #[derive(Debug)]
 struct State {
     a: u8,
+    c: u8,
     h: u8,
     l: u8,
 }
@@ -15,6 +16,7 @@ struct State {
 #[derive(Debug)]
 struct Flags {
     z: bool,
+    c: bool
 }
 
 struct Emulator {
@@ -35,8 +37,8 @@ impl Emulator {
             memory: memory,
             stack: Vec::new(),
             pc: 0,
-            state: State { a: 0, h: 0, l: 0 },
-            flags: Flags { z: false }
+            state: State { a: 0, c: 0, h: 0, l: 0 },
+            flags: Flags { z: false, c: false }
         }
     }
 
@@ -56,6 +58,20 @@ impl Emulator {
             },
             MainInstructions::LDBC(_) => todo!(),
             MainInstructions::INCBC => todo!(),
+            MainInstructions::RRA => {
+                let val = self.state.a;
+                let low_bit: bool = (val & 1) != 0;
+                
+                let high_bit: u8 = if self.flags.c {
+                    0b1000_0000
+                } else {
+                    0
+                };
+                let val = (val >> 1) + high_bit;
+                self.flags.c = low_bit;
+                self.state.a = val;
+                1
+            },
             MainInstructions::LDHL(val) => {
                 self.state.h = (val >> 8) as u8;
                 self.state.l = val as u8;
@@ -63,6 +79,22 @@ impl Emulator {
             },
             MainInstructions::INCHL => {
                 let val = (self.get_hl_addr() + 1) as u16;
+                self.state.h = (val >> 8) as u8;
+                self.state.l = val as u8;
+                1
+            },
+            MainInstructions::DDA => {
+                if self.state.a & 0b1111 > 9 {
+                    self.state.a = self.state.a.wrapping_add(0x06);
+                }
+                if ((self.state.a & 0b1111_0000) >> 4) > 9 {
+                    self.state.a = self.state.a.wrapping_add(0x60);
+                }
+                1
+            }
+            MainInstructions::DECHL => {
+                let val = self.get_hl_addr() as u16;
+                let val = val.wrapping_sub(1);
                 self.state.h = (val >> 8) as u8;
                 self.state.l = val as u8;
                 1
@@ -75,6 +107,14 @@ impl Emulator {
                 self.state.a = val;
                 2
             },
+            MainInstructions::LDCH => {
+                self.state.c = self.state.h;
+                1
+            }
+            MainInstructions::LDCL => {
+                self.state.c = self.state.l;
+                1
+            }
             MainInstructions::HALT => {
                 exit(0)
             }
@@ -82,6 +122,10 @@ impl Emulator {
                 self.memory[self.get_hl_addr()] = self.state.a;
                 1
             },
+            MainInstructions::LDAC => {
+                self.state.a = self.state.c;
+                1
+            }
             MainInstructions::LDAHL => {
                 self.state.a = self.memory[self.get_hl_addr()];
                 1
@@ -94,6 +138,10 @@ impl Emulator {
                 self.pc = val as usize;
                 0
             },
+            MainInstructions::ADDAN(val) => {
+                self.state.a = self.state.a.wrapping_add(val);
+                2
+            }
             MainInstructions::RETZ => {
                 if self.flags.z {
                     let val = self.stack.pop().expect("No stack value.");
@@ -102,12 +150,26 @@ impl Emulator {
                 } else {
                     1
                 }
-            }
+            },
+            MainInstructions::RET => {
+                let val = self.stack.pop().expect("No stack value.");
+                self.pc = val as usize;
+                0
+            },
             MainInstructions::CALL(addr) => {
                 self.stack.push(self.pc as u16 + 3);
                 self.pc = addr as usize;
                 0
             },
+            MainInstructions::ADCAN(val) => {
+                let carry = if self.flags.c {
+                    1
+                } else {
+                    0
+                };
+                self.state.a = self.state.a.wrapping_add(val + carry);
+                2
+            }
             MainInstructions::OUT(device) => {
                 match device {
                     1 => {
@@ -128,6 +190,10 @@ impl Emulator {
                 let hl = self.get_hl_addr() as u16;
                 self.stack.push(hl);
                 1
+            },
+            MainInstructions::ANDN(val) => {
+                self.state.a &= val;
+                2
             },
             MainInstructions::CPN(val) => {
                 let cmp = self.state.a.wrapping_sub(val);
