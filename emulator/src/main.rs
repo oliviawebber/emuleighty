@@ -173,8 +173,7 @@ impl Emulator {
                         if let Some(out_char) = char::from_u32(self.state.a as u32) {
                             print!("{}", out_char)
                         } else {
-                            // We shouldn't be able to get here since every u8 is a valid code point, but just in case
-                            print!("[{}]", self.state.a)
+                            print!("[U+{:X}]", self.state.a)
                         }
                     },
                     _ => todo!(),
