@@ -77,7 +77,7 @@ impl Emulator {
                 3
             },
             MainInstructions::INCHL => {
-                let val = (self.get_hl_addr() + 1) as u16;
+                let val = self.get_hl().wrapping_add(1);
                 self.load_hl(val);
                 1
             },
@@ -91,7 +91,7 @@ impl Emulator {
                 1
             }
             MainInstructions::DECHL => {
-                let val = self.get_hl_addr() as u16;
+                let val = self.get_hl();
                 let val = val.wrapping_sub(1);
                 self.load_hl(val);
                 1
@@ -183,8 +183,7 @@ impl Emulator {
                 1
             },
             MainInstructions::PUSHHL => {
-                let hl = self.get_hl_addr() as u16;
-                self.stack.push(hl);
+                self.stack.push(self.get_hl());
                 1
             },
             MainInstructions::ANDN(val) => {
@@ -212,8 +211,12 @@ impl Emulator {
         println!("STACK:\n {:X?}", self.stack);
     }
 
+    fn get_hl(&self) -> u16 {
+        u16::from_le_bytes([self.state.l, self.state.h])
+    }
+
     fn get_hl_addr(&self) -> usize {
-        u16::from_le_bytes([self.state.l, self.state.h]) as usize
+        self.get_hl() as usize
     }
 
     fn load_hl(&mut self, value: u16) -> () {
