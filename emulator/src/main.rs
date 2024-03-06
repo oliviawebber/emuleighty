@@ -73,14 +73,12 @@ impl Emulator {
                 1
             },
             MainInstructions::LDHL(val) => {
-                self.state.h = (val >> 8) as u8;
-                self.state.l = val as u8;
+                self.load_hl(val);
                 3
             },
             MainInstructions::INCHL => {
                 let val = (self.get_hl_addr() + 1) as u16;
-                self.state.h = (val >> 8) as u8;
-                self.state.l = val as u8;
+                self.load_hl(val);
                 1
             },
             MainInstructions::DDA => {
@@ -95,8 +93,7 @@ impl Emulator {
             MainInstructions::DECHL => {
                 let val = self.get_hl_addr() as u16;
                 let val = val.wrapping_sub(1);
-                self.state.h = (val >> 8) as u8;
-                self.state.l = val as u8;
+                self.load_hl(val);
                 1
             }
             MainInstructions::INCA => {
@@ -182,8 +179,7 @@ impl Emulator {
             },
             MainInstructions::POPHL => {
                 let val = self.stack.pop().expect("No value on stack!");
-                self.state.h = (val >> 8) as u8;
-                self.state.l = val as u8;
+                self.load_hl(val);
                 1
             },
             MainInstructions::PUSHHL => {
@@ -218,6 +214,11 @@ impl Emulator {
 
     fn get_hl_addr(&self) -> usize {
         u16::from_le_bytes([self.state.l, self.state.h]) as usize
+    }
+
+    fn load_hl(&mut self, value: u16) -> () {
+        self.state.h = (value >> 8) as u8;
+        self.state.l = value as u8;
     }
 }
 
